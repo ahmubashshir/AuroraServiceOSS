@@ -8,25 +8,29 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:divider="@drawable/divider"
         android:orientation="vertical"
+        android:showDividers="middle"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <androidx.appcompat.widget.AppCompatTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="@string/app_name"
             android:padding="@dimen/margin_small"
+            android:text="@string/app_name"
             android:textAppearance="@style/TextAppearance.Aurora.Title" />
 
         <androidx.appcompat.widget.AppCompatTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="@string/app_desc"
             android:background="@drawable/padded_bg_solid"
+            android:text="@string/app_desc"
             android:textAppearance="@style/TextAppearance.Aurora.Line1" />
 
-        <include layout="@layout/include_status" />
+        <include
+            android:id="@+id/layout_status"
+            layout="@layout/include_status" />
     </LinearLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

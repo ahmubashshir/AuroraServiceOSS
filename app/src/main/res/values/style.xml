@@ -1,19 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="AppTheme" parent="@style/Theme.MaterialComponents.NoActionBar">
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:colorBackground">@color/colorBackground</item>
-        <item name="android:windowBackground">@color/colorWindowBackground</item>
-        <item name="android:navigationBarColor">@color/colorNavigation</item>
-        <item name="colorPrimarySurface">@color/colorBackground</item>
-        <item name="colorSurface">@color/colorBackground</item>
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">?android:colorBackground</item>
+        <item name="colorError">@color/colorRed</item>
     </style>
 
     <style name="TextAppearance.Aurora.Title" parent="TextAppearance.AppCompat.Medium">
-        <item name="android:letterSpacing">0.05</item>
         <item name="android:ellipsize">end</item>
         <item name="android:maxLines">1</item>
         <item name="android:textStyle">bold</item>
@@ -25,7 +21,6 @@
 
     <style name="TextAppearance.Aurora.SubTitle" parent="TextAppearance.Aurora.Title">
         <item name="android:textColor">?android:attr/textColorPrimary</item>
-        <item name="android:letterSpacing">0.025</item>
         <item name="android:textSize">18sp</item>
     </style>
 

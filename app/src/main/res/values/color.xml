@@ -7,6 +7,7 @@
     <color name="colorBackground">#2d2e31</color>
     <color name="colorWindowBackground">#202124</color>
     <color name="colorNavigation">@color/colorBackground</color>
+    <color name="colorTransparent">#00000000</color>
 
     <color name="colorStroke">#20000000</color>
 

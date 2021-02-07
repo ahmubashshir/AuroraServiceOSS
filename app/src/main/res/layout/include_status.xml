@@ -33,7 +33,7 @@
                 <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="@dimen/icon_size_category"
                     android:layout_height="@dimen/icon_size_category"
-                    android:tint="?android:attr/colorAccent"
+                    android:tint="@color/colorAccent"
                     app:srcCompat="@drawable/ic_service" />
 
                 <TextView
@@ -72,7 +72,7 @@
                 <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="@dimen/icon_size_category"
                     android:layout_height="@dimen/icon_size_category"
-                    android:tint="?android:attr/colorAccent"
+                    android:tint="@color/colorAccent"
                     app:srcCompat="@drawable/ic_permission" />
 
                 <TextView
@@ -111,7 +111,7 @@
                 <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="@dimen/icon_size_category"
                     android:layout_height="@dimen/icon_size_category"
-                    android:tint="?android:attr/colorAccent"
+                    android:tint="@color/colorAccent"
                     app:srcCompat="@drawable/ic_apps" />
 
                 <TextView
@@ -150,7 +150,7 @@
                 <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="@dimen/icon_size_category"
                     android:layout_height="@dimen/icon_size_category"
-                    android:tint="?android:attr/colorAccent"
+                    android:tint="@color/colorAccent"
                     app:srcCompat="@drawable/ic_log" />
 
                 <TextView
