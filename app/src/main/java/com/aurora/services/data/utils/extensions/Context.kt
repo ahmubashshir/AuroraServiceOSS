@@ -1,5 +1,7 @@
 package com.aurora.services.data.utils.extensions
 
+import android.app.Service
+import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -21,6 +23,11 @@ fun <T> Context.open(className: Class<T>) {
         userAppIntent,
         Util.getEmptyActivityBundle(this)
     )
+}
+
+fun Context.isDeviceOwner(packageName: String): Boolean {
+    val manager = getSystemService(Service.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    return manager.isDeviceOwnerApp(packageName)
 }
 
 fun AppCompatActivity.setLightConfiguration() {

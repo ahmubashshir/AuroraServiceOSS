@@ -20,7 +20,6 @@ import android.Manifest
 import android.annotation.TargetApi
 import android.app.PendingIntent
 import android.app.Service
-import android.app.admin.DevicePolicyManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -29,7 +28,6 @@ import android.content.pm.IPackageDeleteObserver
 import android.content.pm.IPackageInstallObserver
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageInstaller.SessionParams
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
@@ -37,13 +35,11 @@ import android.os.RemoteException
 import android.widget.Toast
 import com.aurora.services.data.model.Stat
 import com.aurora.services.data.provider.StatsProvider
-import com.aurora.services.data.utils.CommonUtils
-import com.aurora.services.data.utils.IOUtils
 import com.aurora.services.data.utils.Log
-import java.io.File
-import java.io.FileInputStream
-import java.io.IOException
-import java.io.InputStream
+import com.aurora.services.data.utils.extensions.isDeviceOwner
+import com.aurora.services.data.utils.extensions.isGranted
+import org.apache.commons.io.IOUtils
+import java.io.*
 import java.lang.reflect.Method
 
 class PrivilegedService : Service() {
@@ -58,7 +54,10 @@ class PrivilegedService : Service() {
 
     private val broadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val returnCode = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)
+            val returnCode = intent.getIntExtra(
+                PackageInstaller.EXTRA_STATUS,
+                PackageInstaller.STATUS_FAILURE
+            )
             val packageName = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME)
             try {
                 iPrivilegedCallback.handleResult(packageName, returnCode)
@@ -71,54 +70,83 @@ class PrivilegedService : Service() {
     private val binder: IPrivilegedService.Stub = object : IPrivilegedService.Stub() {
 
         override fun hasPrivilegedPermissions(): Boolean {
-            val callerIsAllowed = accessProvider.isAllowed()
-            return callerIsAllowed && hasPrivilegedPermissionsImpl()
+            val hasInstallPermission = packageManager.isGranted(
+                packageName,
+                Manifest.permission.INSTALL_PACKAGES
+            )
+
+            val hasDeletePermission = packageManager.isGranted(
+                packageName,
+                Manifest.permission.DELETE_PACKAGES
+            )
+
+            return hasInstallPermission && hasDeletePermission
         }
 
         override fun installPackage(
-            packageURI: Uri,
+            packageName: String,
+            uri: Uri,
             flags: Int,
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
             if (accessProvider.isAllowed()) {
-                if (Build.VERSION.SDK_INT >= 24) {
-                    doPackageStage(packageURI)
+                if (Build.VERSION.SDK_INT >= 21) {
+                    createInstallSession(uri)
                     iPrivilegedCallback = callback
                 } else {
-                    this@PrivilegedService.installPackage(
-                        packageURI,
+                    install(
+                        uri,
                         flags,
                         installerPackageName,
                         callback
                     )
                 }
+                updateStats(
+                    uri.path.toString(),
+                    isGranted = true,
+                    isInstall = true
+                )
             } else {
                 Log.e("Caller is blacklisted")
-                return
+                updateStats(
+                    uri.path.toString(),
+                    isGranted = false,
+                    isInstall = true
+                )
             }
         }
 
         override fun installSplitPackage(
-            uriList: List<Uri>, flags: Int, installerPackageName: String,
+            packageName: String,
+            uriList: List<Uri>,
+            flags: Int,
+            installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
             if (accessProvider.isAllowed()) {
-                doSplitPackageStage(uriList)
+                createInstallSession(uriList)
                 iPrivilegedCallback = callback
+                updateStats(uriList[0].path.toString(), true, true)
             } else {
                 Log.e("Caller is blacklisted")
-                return
+                updateStats(uriList[0].path.toString(), false, true)
             }
         }
 
-        override fun deletePackage(packageName: String, flags: Int, callback: IPrivilegedCallback) {
+        override fun deletePackage(
+            packageName: String,
+            flags: Int,
+            callback: IPrivilegedCallback
+        ) {
             if (accessProvider.isAllowed()) {
                 if (Build.VERSION.SDK_INT >= 24) {
                     iPrivilegedCallback = callback
                     val packageManager = packageManager
                     val packageInstaller = packageManager.packageInstaller
+
                     packageManager.setInstallerPackageName(packageName, "com.aurora.services")
+
                     val uninstallIntent = Intent(Constants.BROADCAST_ACTION_UNINSTALL)
                     val pendingIntent = PendingIntent.getBroadcast(
                         this@PrivilegedService,
@@ -126,11 +154,23 @@ class PrivilegedService : Service() {
                         uninstallIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT
                     )
+
                     packageInstaller.uninstall(packageName, pendingIntent.intentSender)
                 } else {
-                    this@PrivilegedService.deletePackage(packageName, flags, callback)
+                    uninstall(packageName, flags, callback)
                 }
+
+                updateStats(
+                    packageName,
+                    isGranted = true,
+                    isInstall = false
+                )
             } else {
+                updateStats(
+                    packageName,
+                    isGranted = false,
+                    isInstall = false
+                )
                 Log.e("Caller is blacklisted")
                 return
             }
@@ -143,7 +183,7 @@ class PrivilegedService : Service() {
         accessProvider = AccessProvider.with(this)
         statsProvider = StatsProvider.with(this)
 
-        if (Build.VERSION.SDK_INT < 24) {
+        if (Build.VERSION.SDK_INT < 21) {
             try {
                 registerMethods()
             } catch (e: NoSuchMethodException) {
@@ -157,6 +197,11 @@ class PrivilegedService : Service() {
 
     override fun onBind(intent: Intent): IBinder {
         return binder
+    }
+
+    override fun onDestroy() {
+        unregisterReceiver(broadcastReceiver)
+        super.onDestroy()
     }
 
     private fun registerMethods() {
@@ -207,70 +252,28 @@ class PrivilegedService : Service() {
         )
     }
 
-    @TargetApi(24)
-    private fun doPackageStage(uri: Uri) {
-        val packageManager = packageManager
+    @TargetApi(21)
+    private fun createInstallSession(uri: Uri) {
+        val params = SessionParams(SessionParams.MODE_FULL_INSTALL)
         val packageInstaller = packageManager.packageInstaller
-        val params = SessionParams(
-            SessionParams.MODE_FULL_INSTALL
-        )
-        try {
-            val buffer = ByteArray(65536)
-            val sessionId = packageInstaller.createSession(params)
-            val session = packageInstaller.openSession(sessionId)
+        val sessionId = packageInstaller.createSession(params)
+        val session = packageInstaller.openSession(sessionId)
 
-            val file = File(uri.path!!)
-            val inputStream: InputStream = FileInputStream(file)
-            val outputStream = session.openWrite(
+        try {
+            val outputStream: OutputStream = session.openWrite(
                 "PackageInstaller",
                 0,
                 -1
             )
 
-            try {
-                var len: Int
-                while (inputStream.read(buffer).also { len = it } != -1) {
-                    outputStream.write(buffer, 0, len)
-                }
-                session.fsync(outputStream)
-            } finally {
-                CommonUtils.closeQuietly(inputStream)
-                CommonUtils.closeQuietly(outputStream)
-            }
+            IOUtils.copy(
+                contentResolver.openInputStream(uri),
+                outputStream
+            )
+
+            session.fsync(outputStream)
 
             // Create a PendingIntent and use it to generate the IntentSender
-            val installIntent = Intent(Constants.BROADCAST_ACTION_INSTALL)
-            val pendingIntent = PendingIntent.getBroadcast(
-                this /*context*/,
-                sessionId,
-                installIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            session.commit(pendingIntent.intentSender)
-            CommonUtils.closeQuietly(session)
-        } catch (e: IOException) {
-            Log.e("Failure -> %s", e)
-            Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    @TargetApi(21)
-    private fun doSplitPackageStage(uriList: List<Uri>) {
-        val packageManager = packageManager
-        val packageInstaller = packageManager.packageInstaller
-        try {
-            val params = SessionParams(SessionParams.MODE_FULL_INSTALL)
-            val sessionId = packageInstaller.createSession(params)
-            val session = packageInstaller.openSession(sessionId)
-            for (uri in uriList) {
-                val file = File(uri.path!!)
-                val inputStream: InputStream = FileInputStream(file)
-                val outputStream = session.openWrite(file.name, 0, file.length())
-                IOUtils.copy(inputStream, outputStream)
-                session.fsync(outputStream)
-                CommonUtils.closeQuietly(inputStream)
-                CommonUtils.closeQuietly(outputStream)
-            }
             val installIntent = Intent(Constants.BROADCAST_ACTION_INSTALL)
             val pendingIntent = PendingIntent.getBroadcast(
                 this,
@@ -278,25 +281,59 @@ class PrivilegedService : Service() {
                 installIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT
             )
+
             session.commit(pendingIntent.intentSender)
-            CommonUtils.closeQuietly(session)
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             Log.e("Failure -> %s", e)
-            Toast.makeText(this, e.localizedMessage, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
+        } finally {
+            IOUtils.close(session)
         }
     }
 
-    private fun hasPrivilegedPermissionsImpl(): Boolean {
-        val hasInstallPermission = (packageManager
-            .checkPermission(Manifest.permission.INSTALL_PACKAGES, packageName)
-                == PackageManager.PERMISSION_GRANTED)
-        val hasDeletePermission = (packageManager
-            .checkPermission(Manifest.permission.DELETE_PACKAGES, packageName)
-                == PackageManager.PERMISSION_GRANTED)
-        return hasInstallPermission && hasDeletePermission
+    @TargetApi(21)
+    private fun createInstallSession(uriList: List<Uri>) {
+        val params = SessionParams(SessionParams.MODE_FULL_INSTALL)
+        val packageInstaller = packageManager.packageInstaller
+        val sessionId = packageInstaller.createSession(params)
+        val session = packageInstaller.openSession(sessionId)
+
+        try {
+
+            for (uri in uriList) {
+                val outputStream: OutputStream = session.openWrite(
+                    "PackageInstaller",
+                    0,
+                    -1
+                )
+
+                IOUtils.copy(
+                    contentResolver.openInputStream(uri),
+                    outputStream
+                )
+
+                session.fsync(outputStream)
+            }
+
+            // Create a PendingIntent and use it to generate the IntentSender
+            val installIntent = Intent(Constants.BROADCAST_ACTION_INSTALL)
+            val pendingIntent = PendingIntent.getBroadcast(
+                this,
+                sessionId,
+                installIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+            )
+
+            session.commit(pendingIntent.intentSender)
+        } catch (e: Exception) {
+            Log.e("Failure -> %s", e)
+            Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
+        } finally {
+            IOUtils.close(session)
+        }
     }
 
-    private fun installPackage(
+    private fun install(
         packageURI: Uri,
         flags: Int,
         installerPackageName: String,
@@ -306,8 +343,8 @@ class PrivilegedService : Service() {
             override fun packageInstalled(packageName: String, returnCode: Int) {
                 try {
                     callback.handleResult(packageName, returnCode)
-                } catch (e1: RemoteException) {
-                    Log.e("RemoteException -> %s", e1)
+                } catch (remoteException: RemoteException) {
+                    Log.e("RemoteException -> %s", remoteException)
                 }
             }
         }
@@ -330,7 +367,7 @@ class PrivilegedService : Service() {
         }
     }
 
-    private fun deletePackage(packageName: String, flags: Int, callback: IPrivilegedCallback) {
+    private fun uninstall(packageName: String, flags: Int, callback: IPrivilegedCallback) {
         if (isDeviceOwner(packageName)) {
             Log.e("Cannot delete %s. This app is the device owner.", packageName)
             return
@@ -359,11 +396,6 @@ class PrivilegedService : Service() {
         }
     }
 
-    private fun isDeviceOwner(packageName: String): Boolean {
-        val manager = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        return manager.isDeviceOwnerApp(packageName)
-    }
-
     private fun updateStats(
         packageName: String,
         isGranted: Boolean = false,
@@ -377,10 +409,5 @@ class PrivilegedService : Service() {
                 install = isInstall
             }
         )
-    }
-
-    override fun onDestroy() {
-        unregisterReceiver(broadcastReceiver)
-        super.onDestroy()
     }
 }
