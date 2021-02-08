@@ -32,8 +32,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.os.RemoteException
-import android.widget.Toast
+import androidx.annotation.RequiresApi
 import com.aurora.services.data.model.Stat
+import com.aurora.services.data.provider.AccessProvider
 import com.aurora.services.data.provider.StatsProvider
 import com.aurora.services.data.utils.Log
 import com.aurora.services.data.utils.extensions.isDeviceOwner
@@ -41,11 +42,12 @@ import com.aurora.services.data.utils.extensions.isGranted
 import org.apache.commons.io.IOUtils
 import java.io.*
 import java.lang.reflect.Method
+import java.util.*
+
 
 class PrivilegedService : Service() {
 
     private lateinit var statsProvider: StatsProvider
-    private lateinit var accessProvider: AccessProvider
 
     private lateinit var iPrivilegedCallback: IPrivilegedCallback
 
@@ -53,16 +55,20 @@ class PrivilegedService : Service() {
     private lateinit var deleteMethod: Method
 
     private val broadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
         override fun onReceive(context: Context, intent: Intent) {
             val returnCode = intent.getIntExtra(
                 PackageInstaller.EXTRA_STATUS,
                 PackageInstaller.STATUS_FAILURE
             )
+
             val packageName = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME)
-            try {
-                iPrivilegedCallback.handleResult(packageName, returnCode)
-            } catch (e1: RemoteException) {
-                Log.e("RemoteException -> %s", e1)
+            packageName?.let {
+                try {
+                    iPrivilegedCallback.handleResult(packageName, returnCode)
+                } catch (remoteException: RemoteException) {
+                    Log.e("RemoteException -> %s", remoteException)
+                }
             }
         }
     }
@@ -90,27 +96,30 @@ class PrivilegedService : Service() {
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
-            if (accessProvider.isAllowed()) {
+
+            val isAllowed = AccessProvider
+                .with(this@PrivilegedService)
+                .isAllowed()
+
+            if (isAllowed) {
+
                 if (Build.VERSION.SDK_INT >= 21) {
-                    createInstallSession(uri)
+                    createInstallSession(packageName, uri)
                     iPrivilegedCallback = callback
                 } else {
-                    install(
-                        uri,
-                        flags,
-                        installerPackageName,
-                        callback
-                    )
+                    install(packageName, uri, flags, installerPackageName, callback)
                 }
+
                 updateStats(
-                    uri.path.toString(),
+                    packageName,
+                    installerPackageName,
                     isGranted = true,
                     isInstall = true
                 )
             } else {
-                Log.e("Caller is blacklisted")
                 updateStats(
-                    uri.path.toString(),
+                    packageName,
+                    installerPackageName,
                     isGranted = false,
                     isInstall = true
                 )
@@ -124,13 +133,16 @@ class PrivilegedService : Service() {
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
-            if (accessProvider.isAllowed()) {
-                createInstallSession(uriList)
+            val isAllowed = AccessProvider
+                .with(this@PrivilegedService)
+                .isAllowed()
+
+            if (isAllowed) {
+                createInstallSession(packageName, uriList)
                 iPrivilegedCallback = callback
-                updateStats(uriList[0].path.toString(), true, true)
+                updateStats(packageName, installerPackageName, isGranted = true, isInstall = true)
             } else {
-                Log.e("Caller is blacklisted")
-                updateStats(uriList[0].path.toString(), false, true)
+                updateStats(packageName, installerPackageName, isGranted = false, isInstall = true)
             }
         }
 
@@ -139,19 +151,27 @@ class PrivilegedService : Service() {
             flags: Int,
             callback: IPrivilegedCallback
         ) {
-            if (accessProvider.isAllowed()) {
+            val isAllowed = AccessProvider
+                .with(this@PrivilegedService)
+                .isAllowed()
+
+            if (isAllowed) {
                 if (Build.VERSION.SDK_INT >= 24) {
                     iPrivilegedCallback = callback
+
                     val packageManager = packageManager
                     val packageInstaller = packageManager.packageInstaller
 
-                    packageManager.setInstallerPackageName(packageName, "com.aurora.services")
+                    packageManager.setInstallerPackageName(
+                        packageName,
+                        BuildConfig.APPLICATION_ID
+                    )
 
-                    val uninstallIntent = Intent(Constants.BROADCAST_ACTION_UNINSTALL)
+                    val intent = Intent(Constants.BROADCAST_ACTION_UNINSTALL)
                     val pendingIntent = PendingIntent.getBroadcast(
                         this@PrivilegedService,
                         0,
-                        uninstallIntent,
+                        intent,
                         PendingIntent.FLAG_UPDATE_CURRENT
                     )
 
@@ -160,18 +180,9 @@ class PrivilegedService : Service() {
                     uninstall(packageName, flags, callback)
                 }
 
-                updateStats(
-                    packageName,
-                    isGranted = true,
-                    isInstall = false
-                )
+                updateStats(packageName, "", isGranted = true, isInstall = false)
             } else {
-                updateStats(
-                    packageName,
-                    isGranted = false,
-                    isInstall = false
-                )
-                Log.e("Caller is blacklisted")
+                updateStats(packageName, "", isGranted = false, isInstall = false)
                 return
             }
         }
@@ -180,7 +191,6 @@ class PrivilegedService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        accessProvider = AccessProvider.with(this)
         statsProvider = StatsProvider.with(this)
 
         if (Build.VERSION.SDK_INT < 21) {
@@ -253,25 +263,27 @@ class PrivilegedService : Service() {
     }
 
     @TargetApi(21)
-    private fun createInstallSession(uri: Uri) {
+    private fun createInstallSession(packageName: String, uri: Uri) {
         val params = SessionParams(SessionParams.MODE_FULL_INSTALL)
         val packageInstaller = packageManager.packageInstaller
         val sessionId = packageInstaller.createSession(params)
         val session = packageInstaller.openSession(sessionId)
 
         try {
-            val outputStream: OutputStream = session.openWrite(
-                "PackageInstaller",
+
+            val inputStream = contentResolver.openInputStream(uri)
+            val outputStream = session.openWrite(
+                packageName,
                 0,
                 -1
             )
 
-            IOUtils.copy(
-                contentResolver.openInputStream(uri),
-                outputStream
-            )
+            IOUtils.copy(inputStream, outputStream)
 
             session.fsync(outputStream)
+
+            IOUtils.close(inputStream)
+            IOUtils.close(outputStream)
 
             // Create a PendingIntent and use it to generate the IntentSender
             val installIntent = Intent(Constants.BROADCAST_ACTION_INSTALL)
@@ -285,62 +297,60 @@ class PrivilegedService : Service() {
             session.commit(pendingIntent.intentSender)
         } catch (e: Exception) {
             Log.e("Failure -> %s", e)
-            Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
         } finally {
             IOUtils.close(session)
         }
     }
 
     @TargetApi(21)
-    private fun createInstallSession(uriList: List<Uri>) {
-        val params = SessionParams(SessionParams.MODE_FULL_INSTALL)
+    private fun createInstallSession(packageName: String, uriList: List<Uri>) {
         val packageInstaller = packageManager.packageInstaller
+        val params = SessionParams(SessionParams.MODE_FULL_INSTALL)
         val sessionId = packageInstaller.createSession(params)
         val session = packageInstaller.openSession(sessionId)
 
         try {
-
+            var apkId = 1
             for (uri in uriList) {
-                val outputStream: OutputStream = session.openWrite(
-                    "PackageInstaller",
+                val inputStream = contentResolver.openInputStream(uri)
+                val outputStream = session.openWrite(
+                    "${packageName}_${apkId++}",
                     0,
                     -1
                 )
 
-                IOUtils.copy(
-                    contentResolver.openInputStream(uri),
-                    outputStream
-                )
+                IOUtils.copy(inputStream, outputStream)
 
                 session.fsync(outputStream)
+
+                IOUtils.close(inputStream)
+                IOUtils.close(outputStream)
             }
 
-            // Create a PendingIntent and use it to generate the IntentSender
-            val installIntent = Intent(Constants.BROADCAST_ACTION_INSTALL)
+
+            val intent = Intent(Constants.BROADCAST_ACTION_INSTALL)
             val pendingIntent = PendingIntent.getBroadcast(
                 this,
                 sessionId,
-                installIntent,
+                intent,
                 PendingIntent.FLAG_UPDATE_CURRENT
             )
 
             session.commit(pendingIntent.intentSender)
         } catch (e: Exception) {
             Log.e("Failure -> %s", e)
-            Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
         } finally {
             IOUtils.close(session)
         }
     }
 
     private fun install(
-        packageURI: Uri,
-        flags: Int,
+        packageName: String, packageURI: Uri, flags: Int,
         installerPackageName: String,
         callback: IPrivilegedCallback
     ) {
         val observer = object : IPackageInstallObserver.Stub() {
-            override fun packageInstalled(packageName: String, returnCode: Int) {
+            override fun packageInstalled(packageName: String?, returnCode: Int) {
                 try {
                     callback.handleResult(packageName, returnCode)
                 } catch (remoteException: RemoteException) {
@@ -360,7 +370,7 @@ class PrivilegedService : Service() {
         } catch (e: Exception) {
             Log.e("Android not compatible! -> %s", e)
             try {
-                callback.handleResult(null, 0)
+                callback.handleResult(packageName, 0)
             } catch (remoteException: RemoteException) {
                 Log.e("RemoteException -> %s", remoteException)
             }
@@ -374,7 +384,7 @@ class PrivilegedService : Service() {
         }
 
         val observer = object : IPackageDeleteObserver.Stub() {
-            override fun packageDeleted(packageName: String, returnCode: Int) {
+            override fun packageDeleted(packageName: String?, returnCode: Int) {
                 try {
                     callback.handleResult(packageName, returnCode)
                 } catch (remoteException: RemoteException) {
@@ -389,7 +399,7 @@ class PrivilegedService : Service() {
         } catch (e: Exception) {
             Log.e("Android not compatible! -> %s", e)
             try {
-                callback.handleResult(null, 0)
+                callback.handleResult(packageName, 0)
             } catch (e1: RemoteException) {
                 Log.e("RemoteException -> %s", e1)
             }
@@ -398,6 +408,7 @@ class PrivilegedService : Service() {
 
     private fun updateStats(
         packageName: String,
+        callerPackageName: String,
         isGranted: Boolean = false,
         isInstall: Boolean = false
     ) {
@@ -405,7 +416,7 @@ class PrivilegedService : Service() {
             Stat(packageName).apply {
                 granted = isGranted
                 timeStamp = System.currentTimeMillis()
-                installerPackageName = accessProvider.getInstallerPackageName()
+                installerPackageName = callerPackageName
                 install = isInstall
             }
         )

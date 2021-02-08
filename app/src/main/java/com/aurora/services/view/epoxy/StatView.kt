@@ -45,7 +45,7 @@ class StatView : RelativeLayout {
 
     @ModelProp
     fun app(app: Stat) {
-        B.line1.text = app.displayName
+        B.line1.text = app.installerPackageName
         B.line2.text = app.packageName
 
         val extra = listOf(

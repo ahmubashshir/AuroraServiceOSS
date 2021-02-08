@@ -2,20 +2,18 @@
 <resources>
 
     <string name="app_name">Aurora Services</string>
-    <string name="app_desc">A privileged extension for Aurora Apps </string>
 
-    <string name="perm_granted">Granted</string>
-    <string name="perm_not_granted">Not Granted</string>
+    <string name="action_clear">Clear</string>
+
+    <string name="title_service">Service</string>
     <string name="service_enabled">Enabled</string>
     <string name="service_disabled">Disabled</string>
 
-    <string name="title_service">Service</string>
     <string name="title_permission">Permissions</string>
-    <string name="title_whitelist">Whitelist</string>
-    <string name="subtitle_whitelist">Allowed apps</string>
-    <string name="title_whitelist_desc">Select apps that can access Aurora Services</string>
-    <string name="title_log">Install Log</string>
-    <string name="subtitle_log">Recent installs</string>
-    <string name="title_log_desc">Your recently installed apps</string>
+    <string name="perm_granted">Granted</string>
+    <string name="perm_not_granted">Not Granted</string>
 
+    <string name="title_statistics">Install History</string>
+    <string name="title_no_statistics">No stats available</string>
+    <string name="title_statistics_desc">Your recently installed apps</string>
 </resources>

@@ -10,7 +10,10 @@
 
     <com.airbnb.epoxy.EpoxyRecyclerView
         android:id="@+id/recycler"
+        android:padding="@dimen/padding_normal"
+        android:overScrollMode="never"
+        android:scrollbars="none"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        tools:listitem="@layout/view_app" />
+        tools:listitem="@layout/view_stat" />
 </LinearLayout>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
@@ -8,29 +9,22 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:divider="@drawable/divider"
-        android:orientation="vertical"
-        android:showDividers="middle"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <androidx.appcompat.widget.AppCompatTextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:padding="@dimen/margin_small"
-            android:text="@string/app_name"
-            android:textAppearance="@style/TextAppearance.Aurora.Title" />
-
-        <androidx.appcompat.widget.AppCompatTextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:background="@drawable/padded_bg_solid"
-            android:text="@string/app_desc"
-            android:textAppearance="@style/TextAppearance.Aurora.Line1" />
+        android:orientation="vertical">
 
         <include
-            android:id="@+id/layout_status"
-            layout="@layout/include_status" />
+            android:id="@+id/layout_toolbar"
+            layout="@layout/view_toolbar_native" />
+
+        <com.airbnb.epoxy.EpoxyRecyclerView
+            android:id="@+id/epoxy_recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:padding="@dimen/padding_normal"
+            android:scrollbars="none"
+            app:itemSpacing="@dimen/margin_normal"
+            tools:itemCount="3"
+            tools:listitem="@layout/view_dashboard" />
     </LinearLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

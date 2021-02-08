@@ -25,12 +25,17 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
         observe()
     }
 
+    fun clear(){
+        statsProvider.clear()
+        observe()
+    }
+
     fun observe() {
         viewModelScope.launch(Dispatchers.IO) {
             supervisorScope {
                 try {
                     stats.flushAndAdd(statsProvider.getStats())
-                    liveData.postValue(statsProvider.getStats().sortedBy { it.displayName })
+                    liveData.postValue(statsProvider.getStats().sortedByDescending { it.timeStamp })
                 } catch (e: Exception) {
                     liveData.postValue(listOf())
                 }

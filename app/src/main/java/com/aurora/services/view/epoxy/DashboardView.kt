@@ -2,24 +2,24 @@ package com.aurora.services.view.epoxy
 
 import android.content.Context
 import android.util.AttributeSet
-import android.widget.CompoundButton
 import android.widget.RelativeLayout
+import androidx.core.content.ContextCompat
 import com.airbnb.epoxy.CallbackProp
 import com.airbnb.epoxy.ModelProp
 import com.airbnb.epoxy.ModelView
 import com.airbnb.epoxy.OnViewRecycled
 import com.aurora.services.R
-import com.aurora.services.data.model.App
-import com.aurora.services.databinding.ViewAppBinding
+import com.aurora.services.data.model.Dash
+import com.aurora.services.databinding.ViewDashboardBinding
 
 @ModelView(
-    autoLayout = ModelView.Size.WRAP_WIDTH_WRAP_HEIGHT,
+    autoLayout = ModelView.Size.MATCH_WIDTH_WRAP_HEIGHT,
     baseModelClass = BaseView::class
 )
 
-class AppView : RelativeLayout {
+class DashboardView : RelativeLayout {
 
-    private lateinit var B: ViewAppBinding
+    private lateinit var B: ViewDashboardBinding
 
     constructor(context: Context?) : super(context) {
         init(context, null)
@@ -38,36 +38,20 @@ class AppView : RelativeLayout {
     }
 
     private fun init(context: Context?, attrs: AttributeSet?) {
-        val view = inflate(context, R.layout.view_app, this)
-        B = ViewAppBinding.bind(view)
+        val view = inflate(context, R.layout.view_dashboard, this)
+        B = ViewDashboardBinding.bind(view)
     }
 
     @ModelProp
-    fun app(app: App) {
-        B.line1.text = app.displayName
-        B.line2.text = app.packageName
-        B.line3.text = ("${app.versionName}.${app.versionCode}")
-        B.img.setImageDrawable(app.drawable)
-    }
-
-    @ModelProp
-    fun markChecked(isChecked: Boolean) {
-        B.checkbox.isChecked = isChecked
-    }
-
-    @CallbackProp
-    fun checked(onCheckedChangeListener: CompoundButton.OnCheckedChangeListener?) {
-        B.checkbox.setOnCheckedChangeListener(onCheckedChangeListener)
+    fun dash(dash: Dash) {
+        B.img.setImageDrawable(ContextCompat.getDrawable(context, dash.icon))
+        B.txtLine1.text = dash.title
+        B.txtLine2.text = dash.subtitle
     }
 
     @CallbackProp
     fun click(onClickListener: OnClickListener?) {
         B.root.setOnClickListener(onClickListener)
-    }
-
-    @CallbackProp
-    fun longClick(onClickListener: OnLongClickListener?) {
-        B.root.setOnLongClickListener(onClickListener)
     }
 
     @OnViewRecycled

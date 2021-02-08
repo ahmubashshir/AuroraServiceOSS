@@ -17,12 +17,12 @@ package android.content.pm
 
 import android.os.*
 
-interface IPackageDeleteObserver : IInterface {
+interface IPackageInstallObserver : IInterface {
 
     @Throws(RemoteException::class)
-    fun packageDeleted(packageName: String?, returnCode: Int)
+    fun packageInstalled(packageName: String?, returnCode: Int)
 
-    abstract class Stub : Binder(), IPackageDeleteObserver {
+    abstract class Stub : Binder(), IPackageInstallObserver {
         override fun asBinder(): IBinder {
             throw RuntimeException("Stub!")
         }
@@ -38,7 +38,7 @@ interface IPackageDeleteObserver : IInterface {
         }
 
         companion object {
-            fun asInterface(obj: IBinder?): IPackageDeleteObserver {
+            fun asInterface(obj: IBinder?): IPackageInstallObserver {
                 throw RuntimeException("Stub!")
             }
         }

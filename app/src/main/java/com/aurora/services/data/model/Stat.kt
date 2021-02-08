@@ -1,8 +1,7 @@
 package com.aurora.services.data.model
 
 data class Stat(val packageName: String) {
-    var displayName: String = String()
-    var installerPackageName: String = String()
+    var installerPackageName: String = "Unknown"
     var timeStamp: Long = 0L
     var granted = false
     var install = true

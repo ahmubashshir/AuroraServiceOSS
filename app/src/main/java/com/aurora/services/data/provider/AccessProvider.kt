@@ -1,14 +1,16 @@
-package com.aurora.services
+package com.aurora.services.data.provider
 
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Binder
-import com.aurora.services.data.provider.WhitelistProvider
-import com.aurora.services.data.utils.Log
+import com.aurora.services.SingletonHolder
 
 class AccessProvider private constructor(var context: Context) {
 
-    companion object : SingletonHolder<AccessProvider, Context>(::AccessProvider)
+    companion object : SingletonHolder<AccessProvider, Context>(::AccessProvider) {
+        const val PACKAGE_AURORA_STORE = "com.aurora.store"
+        const val PACKAGE_AURORA_DROID = "com.aurora.droid"
+    }
 
     private val packageManager: PackageManager = context.packageManager
 
@@ -33,13 +35,6 @@ class AccessProvider private constructor(var context: Context) {
     }
 
     private fun isPackageAllowed(packageName: String): Boolean {
-        Log.i("Checking if package is allowed to access Aurora Services: %s", packageName)
-        return if (WhitelistProvider.with(context).isWhitelisted(packageName)) {
-            Log.i("Package is allowed to access Aurora Services")
-            true
-        } else {
-            Log.e("Package is NOT allowed to access Aurora Services")
-            false
-        }
+        return packageName == PACKAGE_AURORA_STORE || packageName == PACKAGE_AURORA_DROID
     }
 }
