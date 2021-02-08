@@ -59,7 +59,7 @@ class AuroraActivity : BaseActivity() {
                             subtitle = if (isSystemApp())
                                 getString(R.string.service_enabled)
                             else
-                                getString(R.string.service_enabled),
+                                getString(R.string.service_disabled),
                             icon = R.drawable.ic_service
                         )
                     )
