@@ -110,7 +110,9 @@ class AuroraActivity : BaseActivity() {
         when (requestCode) {
             1337 -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    inflateStatus()
+                    runOnUiThread {
+                        inflateStatus()
+                    }
                 } else {
                     Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
                 }
