@@ -10,8 +10,8 @@ android {
         applicationId "com.aurora.services"
         minSdkVersion 19
         targetSdkVersion 30
-        versionCode 6
-        versionName "1.0.6"
+        versionCode 7
+        versionName "1.0.7"
 
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
