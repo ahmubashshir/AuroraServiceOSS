@@ -9,6 +9,7 @@ class AccessProvider private constructor(var context: Context) {
 
     companion object : SingletonHolder<AccessProvider, Context>(::AccessProvider) {
         const val PACKAGE_AURORA_STORE = "com.aurora.store"
+        const val PACKAGE_AURORA_STORE_BETA = "com.aurora.store.beta"
         const val PACKAGE_AURORA_DROID = "com.aurora.droid"
     }
 
@@ -35,6 +36,8 @@ class AccessProvider private constructor(var context: Context) {
     }
 
     private fun isPackageAllowed(packageName: String): Boolean {
-        return packageName == PACKAGE_AURORA_STORE || packageName == PACKAGE_AURORA_DROID
+        return packageName == PACKAGE_AURORA_STORE
+                || packageName == PACKAGE_AURORA_STORE_BETA
+                || packageName == PACKAGE_AURORA_DROID
     }
 }
