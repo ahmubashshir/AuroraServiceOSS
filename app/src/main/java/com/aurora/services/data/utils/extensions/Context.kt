@@ -32,7 +32,7 @@ fun Context.isDeviceOwner(packageName: String): Boolean {
 
 fun AppCompatActivity.setLightConfiguration() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        setLightConfigurationR()
+        setLightConfigurationO()
     } else {
         setLightConfigurationO()
     }
