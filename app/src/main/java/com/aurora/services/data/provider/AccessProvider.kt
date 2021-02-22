@@ -3,15 +3,17 @@ package com.aurora.services.data.provider
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Binder
-import com.aurora.services.SingletonHolder
+import com.aurora.services.data.utils.Log
 
-class AccessProvider private constructor(var context: Context) {
+class AccessProvider(context: Context) {
 
-    companion object : SingletonHolder<AccessProvider, Context>(::AccessProvider) {
-        const val PACKAGE_AURORA_STORE = "com.aurora.store"
-        const val PACKAGE_AURORA_STORE_BETA = "com.aurora.store.beta"
-        const val PACKAGE_AURORA_DROID = "com.aurora.droid"
-    }
+    private val allowedPackages: MutableSet<String> = mutableSetOf(
+        "com.aurora.store",
+        "com.aurora.store.beta",
+        "com.aurora.store.debug",
+        "com.aurora.store.nightly",
+        "com.aurora.droid"
+    )
 
     private val packageManager: PackageManager = context.packageManager
 
@@ -36,8 +38,11 @@ class AccessProvider private constructor(var context: Context) {
     }
 
     private fun isPackageAllowed(packageName: String): Boolean {
-        return packageName == PACKAGE_AURORA_STORE
-                || packageName == PACKAGE_AURORA_STORE_BETA
-                || packageName == PACKAGE_AURORA_DROID
+        val isAllowed = allowedPackages.contains(packageName)
+        if (isAllowed)
+            Log.i("Caller Allowed : $packageName")
+        else
+            Log.e("Caller not allowed : $packageName")
+        return isAllowed
     }
 }

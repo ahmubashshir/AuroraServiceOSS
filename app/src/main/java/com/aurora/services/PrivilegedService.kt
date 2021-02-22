@@ -97,9 +97,7 @@ class PrivilegedService : Service() {
             callback: IPrivilegedCallback
         ) {
 
-            val isAllowed = AccessProvider
-                .with(this@PrivilegedService)
-                .isAllowed()
+            val isAllowed = AccessProvider(this@PrivilegedService).isAllowed()
 
             if (isAllowed) {
 
@@ -133,9 +131,7 @@ class PrivilegedService : Service() {
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
-            val isAllowed = AccessProvider
-                .with(this@PrivilegedService)
-                .isAllowed()
+            val isAllowed = AccessProvider (this@PrivilegedService).isAllowed()
 
             if (isAllowed) {
                 createInstallSession(packageName, uriList)
@@ -151,9 +147,7 @@ class PrivilegedService : Service() {
             flags: Int,
             callback: IPrivilegedCallback
         ) {
-            val isAllowed = AccessProvider
-                .with(this@PrivilegedService)
-                .isAllowed()
+            val isAllowed = AccessProvider(this@PrivilegedService).isAllowed()
 
             if (isAllowed) {
                 if (Build.VERSION.SDK_INT >= 24) {
