@@ -91,6 +91,24 @@ class PrivilegedService : Service() {
         }
 
         override fun installPackage(
+            packageURI: Uri,
+            flags: Int,
+            installerPackageName: String,
+            callback: IPrivilegedCallback
+        ) {
+            installPackageX("¯\\_(ツ)_/¯", packageURI, flags, installerPackageName, callback)
+        }
+
+        override fun installSplitPackage(
+            listURI: List<Uri>,
+            flags: Int,
+            installerPackageName: String,
+            callback: IPrivilegedCallback
+        ) {
+            installSplitPackageX("¯\\_(ツ)_/¯", listURI, flags, installerPackageName, callback)
+        }
+
+        override fun installPackageX(
             packageName: String,
             uri: Uri,
             flags: Int,
@@ -125,14 +143,14 @@ class PrivilegedService : Service() {
             }
         }
 
-        override fun installSplitPackage(
+        override fun installSplitPackageX(
             packageName: String,
             uriList: List<Uri>,
             flags: Int,
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
-            val isAllowed = AccessProvider (this@PrivilegedService).isAllowed()
+            val isAllowed = AccessProvider(this@PrivilegedService).isAllowed()
 
             if (isAllowed) {
                 createInstallSession(packageName, uriList)
@@ -146,6 +164,15 @@ class PrivilegedService : Service() {
         override fun deletePackage(
             packageName: String,
             flags: Int,
+            callback: IPrivilegedCallback
+        ) {
+            deletePackageX(packageName, flags, "¯\\_(ツ)_/¯", callback)
+        }
+
+        override fun deletePackageX(
+            packageName: String,
+            flags: Int,
+            installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
             val isAllowed = AccessProvider(this@PrivilegedService).isAllowed()
@@ -175,9 +202,9 @@ class PrivilegedService : Service() {
                     uninstall(packageName, flags, callback)
                 }
 
-                updateStats(packageName, "", isGranted = true, isInstall = false)
+                updateStats(packageName, installerPackageName, isGranted = true, isInstall = false)
             } else {
-                updateStats(packageName, "", isGranted = false, isInstall = false)
+                updateStats(packageName, installerPackageName, isGranted = false, isInstall = false)
                 return
             }
         }
