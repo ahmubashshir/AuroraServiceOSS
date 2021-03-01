@@ -1,18 +1,20 @@
 package com.aurora.services.view.ui.activities
 
 import android.Manifest
-import android.content.pm.PackageManager
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import android.view.MenuItem
-import android.widget.Toast
-import androidx.core.app.ActivityCompat
 import com.aurora.services.R
-import com.aurora.services.data.model.Dash
+import com.aurora.services.data.model.DashboardItem
 import com.aurora.services.data.utils.extensions.isPermissionGranted
 import com.aurora.services.data.utils.extensions.isSystemApp
 import com.aurora.services.data.utils.extensions.open
 import com.aurora.services.databinding.ActivityAuroraBinding
 import com.aurora.services.view.epoxy.DashboardViewModel_
+import com.livinglifetechway.quickpermissions_kotlin.runWithPermissions
 
 class AuroraActivity : BaseActivity() {
 
@@ -48,58 +50,71 @@ class AuroraActivity : BaseActivity() {
     }
 
     private fun inflateStatus() {
+        val dashboardItemBoardItems: List<DashboardItem> = listOf(
+            DashboardItem(
+                id = 0,
+                title = getString(R.string.title_service),
+                subtitle = if (isSystemApp())
+                    getString(R.string.service_enabled)
+                else
+                    getString(R.string.service_disabled),
+                icon = R.drawable.ic_service
+            ),
+            DashboardItem(
+                id = 1,
+                title = getString(R.string.title_permission),
+                subtitle = if (isPermissionGranted(Manifest.permission.WRITE_EXTERNAL_STORAGE))
+                    getString(R.string.perm_granted)
+                else
+                    getString(R.string.perm_not_granted),
+                icon = R.drawable.ic_permission
+            ),
+            DashboardItem(
+                id = 2,
+                title = getString(R.string.title_statistics),
+                subtitle = getString(R.string.title_statistics_desc),
+                icon = R.drawable.ic_log
+            )
+        )
+
         B.epoxyRecycler.withModels {
-            add(
-                DashboardViewModel_()
-                    .id(0)
-                    .dash(
-                        Dash(
-                            id = 0,
-                            title = getString(R.string.title_service),
-                            subtitle = if (isSystemApp())
-                                getString(R.string.service_enabled)
-                            else
-                                getString(R.string.service_disabled),
-                            icon = R.drawable.ic_service
-                        )
-                    )
-            )
-            add(
-                DashboardViewModel_()
-                    .id(0)
-                    .dash(
-                        Dash(
-                            id = 1,
-                            title = getString(R.string.title_permission),
-                            subtitle = if (isPermissionGranted(Manifest.permission.WRITE_EXTERNAL_STORAGE))
-                                getString(R.string.perm_granted)
-                            else
-                                getString(R.string.perm_not_granted),
-                            icon = R.drawable.ic_permission
-                        )
-                    ).click { _ -> askPermissions() }
-            )
-            add(
-                DashboardViewModel_()
-                    .id(0)
-                    .dash(
-                        Dash(
-                            id = 2,
-                            title = getString(R.string.title_statistics),
-                            subtitle = getString(R.string.title_statistics_desc),
-                            icon = R.drawable.ic_log
-                        )
-                    )
-                    .click { _ -> open(StatisticsActivity::class.java) }
-            )
+            dashboardItemBoardItems.forEach {
+                add(
+                    DashboardViewModel_()
+                        .id(0)
+                        .dash(it)
+                        .click { _ ->
+                            when (it.id) {
+                                1 -> {
+                                    checkStorageAccessPermission()
+                                    checkStorageManagerPermission()
+                                }
+                                2 -> {
+                                    open(StatisticsActivity::class.java)
+                                }
+                            }
+                        }
+                )
+            }
         }
     }
 
-    private fun askPermissions() {
-        ActivityCompat.requestPermissions(
-            this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-            1337
-        )
+    private fun checkStorageAccessPermission() = runWithPermissions(
+        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    ) {
+        B.epoxyRecycler.requestModelBuild()
+    }
+
+    private fun checkStorageManagerPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                startActivityForResult(
+                    Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
+                    99
+                )
+            }
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -108,14 +123,8 @@ class AuroraActivity : BaseActivity() {
         grantResults: IntArray
     ) {
         when (requestCode) {
-            1337 -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    runOnUiThread {
-                        inflateStatus()
-                    }
-                } else {
-                    Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
-                }
+            99 -> {
+                inflateStatus()
             }
         }
     }

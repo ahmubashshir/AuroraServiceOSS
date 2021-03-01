@@ -1,6 +1,6 @@
 package com.aurora.services.data.model
 
-data class Dash(
+data class DashboardItem(
     val id: Int,
     var title: String,
     var subtitle: String,
@@ -13,7 +13,7 @@ data class Dash(
 
     override fun equals(other: Any?): Boolean {
         return when (other) {
-            is Dash -> other.id == id
+            is DashboardItem -> other.id == id && other.subtitle == subtitle
             else -> false
         }
     }

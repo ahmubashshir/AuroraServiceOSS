@@ -9,7 +9,7 @@ import com.airbnb.epoxy.ModelProp
 import com.airbnb.epoxy.ModelView
 import com.airbnb.epoxy.OnViewRecycled
 import com.aurora.services.R
-import com.aurora.services.data.model.Dash
+import com.aurora.services.data.model.DashboardItem
 import com.aurora.services.databinding.ViewDashboardBinding
 
 @ModelView(
@@ -43,10 +43,10 @@ class DashboardView : RelativeLayout {
     }
 
     @ModelProp
-    fun dash(dash: Dash) {
-        B.img.setImageDrawable(ContextCompat.getDrawable(context, dash.icon))
-        B.txtLine1.text = dash.title
-        B.txtLine2.text = dash.subtitle
+    fun dash(dashboardItem: DashboardItem) {
+        B.img.setImageDrawable(ContextCompat.getDrawable(context, dashboardItem.icon))
+        B.txtLine1.text = dashboardItem.title
+        B.txtLine2.text = dashboardItem.subtitle
     }
 
     @CallbackProp

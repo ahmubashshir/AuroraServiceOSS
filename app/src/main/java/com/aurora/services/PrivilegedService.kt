@@ -67,6 +67,7 @@ class PrivilegedService : Service() {
                 try {
                     iPrivilegedCallback.handleResult(packageName, returnCode)
                 } catch (remoteException: RemoteException) {
+                    remoteException.printStackTrace()
                     Log.e("RemoteException -> %s", remoteException)
                 }
             }

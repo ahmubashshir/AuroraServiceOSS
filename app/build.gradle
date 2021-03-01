@@ -73,6 +73,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.3.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.0")
 
+    //Easy Permission
+    implementation("com.github.quickpermissions:quickpermissions-kotlin:0.4.0")
+
     //Epoxy
     implementation("com.airbnb.android:epoxy:4.3.1")
     kapt("com.airbnb.android:epoxy-processor:4.3.1")
