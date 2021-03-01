@@ -155,9 +155,19 @@ class PrivilegedService : Service() {
             if (isAllowed) {
                 createInstallSession(packageName, uriList)
                 iPrivilegedCallback = callback
-                updateStats(packageName, installerPackageName, isGranted = true, isInstall = true)
+                updateStats(
+                    packageName,
+                    installerPackageName,
+                    isGranted = true,
+                    isInstall = true
+                )
             } else {
-                updateStats(packageName, installerPackageName, isGranted = false, isInstall = true)
+                updateStats(
+                    packageName,
+                    installerPackageName,
+                    isGranted = false,
+                    isInstall = true
+                )
             }
         }
 

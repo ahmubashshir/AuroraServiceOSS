@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
 import android.view.MenuItem
+import com.aurora.services.BuildConfig
 import com.aurora.services.R
 import com.aurora.services.data.model.DashboardItem
 import com.aurora.services.data.utils.extensions.isPermissionGranted
@@ -45,7 +46,8 @@ class AuroraActivity : BaseActivity() {
             actionBar.setDisplayShowCustomEnabled(true)
             actionBar.setDisplayHomeAsUpEnabled(true)
             actionBar.elevation = 0f
-            actionBar.setTitle(R.string.app_name)
+            actionBar.title = getString(R.string.app_name)
+            actionBar.subtitle = BuildConfig.VERSION_NAME
         }
     }
 
@@ -81,7 +83,7 @@ class AuroraActivity : BaseActivity() {
             dashboardItemBoardItems.forEach {
                 add(
                     DashboardViewModel_()
-                        .id(0)
+                        .id(it.id)
                         .dash(it)
                         .click { _ ->
                             when (it.id) {
