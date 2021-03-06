@@ -9,7 +9,6 @@ class AccessProvider(context: Context) {
 
     private val allowedPackages: MutableSet<String> = mutableSetOf(
         "com.aurora.store",
-        "com.aurora.store.beta",
         "com.aurora.store.debug",
         "com.aurora.store.nightly",
         "com.aurora.droid"

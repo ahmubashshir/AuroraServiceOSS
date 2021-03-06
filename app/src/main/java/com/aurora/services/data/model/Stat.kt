@@ -12,7 +12,7 @@ data class Stat(val packageName: String) {
 
     override fun equals(other: Any?): Boolean {
         return when (other) {
-            is Stat -> other.packageName == packageName
+            is Stat -> other.packageName == packageName && install == other.install
             else -> false
         }
     }

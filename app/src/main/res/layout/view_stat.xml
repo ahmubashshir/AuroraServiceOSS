@@ -2,7 +2,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?selectableItemBackground"
     android:padding="@dimen/padding_small">
 
     <androidx.appcompat.widget.AppCompatTextView
@@ -11,12 +10,12 @@
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:singleLine="true"
-        android:textAppearance="@style/TextAppearance.Aurora.SubTitle"
+        android:textAppearance="@style/TextAppearance.Aurora.Line1"
         tools:text="Installer Name" />
 
     <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/line2"
-        android:layout_width="fill_parent"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@+id/line1"
         android:layout_alignStart="@id/line1"
@@ -24,11 +23,12 @@
         android:ellipsize="end"
         android:singleLine="true"
         android:textAppearance="@style/TextAppearance.Aurora.Line2"
+        android:textColor="@color/colorAccent"
         tools:text="Package Name" />
 
     <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/line3"
-        android:layout_width="fill_parent"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@+id/line2"
         android:layout_alignStart="@id/line1"

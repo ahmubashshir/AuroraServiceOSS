@@ -9,8 +9,7 @@ import com.airbnb.epoxy.ModelView
 import com.airbnb.epoxy.OnViewRecycled
 import com.aurora.services.R
 import com.aurora.services.data.model.Stat
-import com.aurora.services.data.utils.Util.millisToDay
-import com.aurora.services.data.utils.Util.millisToTime
+import com.aurora.services.data.utils.Util.millisToDayOrTime
 import com.aurora.services.databinding.ViewStatBinding
 
 @ModelView(
@@ -44,17 +43,20 @@ class StatView : RelativeLayout {
     }
 
     @ModelProp
-    fun app(app: Stat) {
-        B.line1.text = app.installerPackageName
-        B.line2.text = app.packageName
+    fun app(stat: Stat) {
+        B.line1.text = stat.installerPackageName
+        B.line2.text = stat.packageName
 
         val extra = listOf(
-            millisToDay(app.timeStamp),
-            millisToTime(app.timeStamp),
-            if (app.granted)
+            millisToDayOrTime(stat.timeStamp),
+            if (stat.granted)
                 context.getString(R.string.perm_granted)
             else
-                context.getString(R.string.perm_not_granted)
+                context.getString(R.string.perm_not_granted),
+            if (stat.install)
+                context.getString(R.string.action_install)
+            else
+                context.getString(R.string.action_uninstall)
         ).joinToString(separator = " • ")
 
         B.line3.text = extra

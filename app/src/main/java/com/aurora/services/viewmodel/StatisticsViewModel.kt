@@ -1,8 +1,6 @@
 package com.aurora.services.viewmodel
 
 import android.app.Application
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
@@ -13,10 +11,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 
-
 class StatisticsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val statsProvider: StatsProvider = StatsProvider.with(application)
+    private val statsProvider: StatsProvider = StatsProvider(application)
 
     var stats: MutableList<Stat> = mutableListOf()
     val liveData: MutableLiveData<List<Stat>> = MutableLiveData()
@@ -25,12 +22,12 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
         observe()
     }
 
-    fun clear(){
+    fun clear() {
         statsProvider.clear()
         observe()
     }
 
-    fun observe() {
+    private fun observe() {
         viewModelScope.launch(Dispatchers.IO) {
             supervisorScope {
                 try {

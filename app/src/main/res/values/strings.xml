@@ -4,6 +4,8 @@
     <string name="app_name">Aurora Services</string>
 
     <string name="action_clear">Clear</string>
+    <string name="action_install">Install</string>
+    <string name="action_uninstall">Uninstall</string>
 
     <string name="title_service">Service</string>
     <string name="service_enabled">Enabled</string>

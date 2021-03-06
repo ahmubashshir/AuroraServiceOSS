@@ -25,25 +25,31 @@ object Util {
         ).toBundle()
     }
 
-    fun millisToDay(millis: Long): String {
+    fun millisToDayOrTime(millis: Long): String {
         val diff = Calendar.getInstance().timeInMillis - millis
         return when (val days = TimeUnit.MILLISECONDS.toDays(diff).toInt()) {
-            0 -> "Today"
-            1 -> "Yesterday"
-            else -> days.toString() + "ago"
+            0, 1 -> millisToTime(millis)
+            else -> "$days days ago"
         }
     }
 
-    fun millisToTime(millis: Long): StringBuilder {
+    private fun millisToTime(millis: Long): String {
         val diff = Calendar.getInstance().timeInMillis - millis
         val minutes = TimeUnit.MILLISECONDS.toMinutes(diff) % 60
         val hours = TimeUnit.MILLISECONDS.toHours(diff)
-        val hh = if (hours >= 1) hours.toString() + "hr" else ""
-        return StringBuilder()
-            .append(if (hh.isEmpty()) "" else hh)
-            .append(" ")
-            .append(minutes)
-            .append(" ")
-            .append(if (minutes >= 1) "minutes ago" else "minute ago")
+
+        val hh = when {
+            hours == 1L -> "$hours hr "
+            hours > 1L -> "$hours hrs "
+            else -> ""
+        }
+
+        val mm = when {
+            minutes == 1L -> "$minutes minute ago"
+            minutes > 1L -> "$minutes minutes ago"
+            else -> "Now"
+        }
+
+        return "$hh $mm"
     }
 }

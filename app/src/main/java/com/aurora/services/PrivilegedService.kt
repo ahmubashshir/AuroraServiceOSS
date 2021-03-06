@@ -44,30 +44,46 @@ import java.io.*
 import java.lang.reflect.Method
 import java.util.*
 
-
 class PrivilegedService : Service() {
 
-    private lateinit var statsProvider: StatsProvider
-
     private lateinit var iPrivilegedCallback: IPrivilegedCallback
-
+    private lateinit var statsProvider: StatsProvider
     private lateinit var installMethod: Method
     private lateinit var deleteMethod: Method
+
+    private var installerPackageName: String = "Unknown"
+    private var installerType: Int = 0
+
+    companion object {
+        const val DELETE_FAILED = -1
+        const val DELETE_FAILED_OWNER = -4
+
+        const val ACTION_INSTALL = "com.aurora.services.ACTION_INSTALL"
+        const val ACTION_UNINSTALL = "com.aurora.services.ACTION_UNINSTALL"
+    }
 
     private val broadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
         override fun onReceive(context: Context, intent: Intent) {
-            val returnCode = intent.getIntExtra(
-                PackageInstaller.EXTRA_STATUS,
-                PackageInstaller.STATUS_FAILURE
-            )
-
+            val returnCode = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -69)
             val packageName = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME)
+            val extra = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+
+            Log.i("Callback -> $installerPackageName $packageName $returnCode $extra")
+
             packageName?.let {
+
+                updateStats(
+                    packageName,
+                    installerPackageName,
+                    isGranted = true,
+                    isInstall = installerType == 0
+                )
+
                 try {
                     iPrivilegedCallback.handleResult(packageName, returnCode)
+                    iPrivilegedCallback.handleResultX(packageName, returnCode, extra)
                 } catch (remoteException: RemoteException) {
-                    remoteException.printStackTrace()
                     Log.e("RemoteException -> %s", remoteException)
                 }
             }
@@ -115,30 +131,22 @@ class PrivilegedService : Service() {
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
-
             val isAllowed = AccessProvider(this@PrivilegedService).isAllowed()
 
             if (isAllowed) {
-
                 if (Build.VERSION.SDK_INT >= 21) {
-                    createInstallSession(packageName, uri)
-                    iPrivilegedCallback = callback
+                    createInstallSession(packageName, installerPackageName, uri, callback)
                 } else {
                     install(packageName, uri, flags, installerPackageName, callback)
                 }
-
-                updateStats(
-                    packageName,
-                    installerPackageName,
-                    isGranted = true,
-                    isInstall = true
-                )
             } else {
-                updateStats(
+                handleFailure(
+                    callback,
                     packageName,
                     installerPackageName,
-                    isGranted = false,
-                    isInstall = true
+                    false,
+                    1,
+                    "Installer not allowed"
                 )
             }
         }
@@ -153,20 +161,15 @@ class PrivilegedService : Service() {
             val isAllowed = AccessProvider(this@PrivilegedService).isAllowed()
 
             if (isAllowed) {
-                createInstallSession(packageName, uriList)
-                iPrivilegedCallback = callback
-                updateStats(
-                    packageName,
-                    installerPackageName,
-                    isGranted = true,
-                    isInstall = true
-                )
+                createInstallSession(packageName, installerPackageName, uriList, callback)
             } else {
-                updateStats(
+                handleFailure(
+                    callback,
                     packageName,
                     installerPackageName,
-                    isGranted = false,
-                    isInstall = true
+                    false,
+                    1,
+                    "Installer not allowed"
                 )
             }
         }
@@ -185,36 +188,62 @@ class PrivilegedService : Service() {
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
+            this@PrivilegedService.iPrivilegedCallback = callback
+            this@PrivilegedService.installerPackageName = installerPackageName
+            this@PrivilegedService.installerType = 1
+
             val isAllowed = AccessProvider(this@PrivilegedService).isAllowed()
 
             if (isAllowed) {
-                if (Build.VERSION.SDK_INT >= 24) {
-                    iPrivilegedCallback = callback
+                try {
+                    if (Build.VERSION.SDK_INT >= 24) {
+                        val packageManager = packageManager
+                        val packageInstaller = packageManager.packageInstaller
 
-                    val packageManager = packageManager
-                    val packageInstaller = packageManager.packageInstaller
+                        packageManager.setInstallerPackageName(
+                            packageName,
+                            BuildConfig.APPLICATION_ID
+                        )
 
-                    packageManager.setInstallerPackageName(
+                        val intent = Intent(ACTION_UNINSTALL)
+                        val pendingIntent = PendingIntent.getBroadcast(
+                            this@PrivilegedService,
+                            0,
+                            intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT
+                        )
+
+                        packageInstaller.uninstall(packageName, pendingIntent.intentSender)
+                    } else {
+                        uninstall(packageName, installerPackageName, flags, callback)
+                    }
+
+                    updateStats(
                         packageName,
-                        BuildConfig.APPLICATION_ID
+                        installerPackageName,
+                        isGranted = true,
+                        isInstall = false
                     )
-
-                    val intent = Intent(Constants.BROADCAST_ACTION_UNINSTALL)
-                    val pendingIntent = PendingIntent.getBroadcast(
-                        this@PrivilegedService,
-                        0,
-                        intent,
-                        PendingIntent.FLAG_UPDATE_CURRENT
+                } catch (e: Exception) {
+                    Log.e("Error : ${e.message}")
+                    handleFailure(
+                        callback,
+                        packageName,
+                        installerPackageName,
+                        true,
+                        DELETE_FAILED,
+                        e.stackTraceToString()
                     )
-
-                    packageInstaller.uninstall(packageName, pendingIntent.intentSender)
-                } else {
-                    uninstall(packageName, flags, callback)
                 }
-
-                updateStats(packageName, installerPackageName, isGranted = true, isInstall = false)
             } else {
-                updateStats(packageName, installerPackageName, isGranted = false, isInstall = false)
+                handleFailure(
+                    callback,
+                    packageName,
+                    installerPackageName,
+                    false,
+                    DELETE_FAILED,
+                    "Un-installer now allowed"
+                )
                 return
             }
         }
@@ -223,7 +252,7 @@ class PrivilegedService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        statsProvider = StatsProvider.with(this)
+        statsProvider = StatsProvider(this)
 
         if (Build.VERSION.SDK_INT < 21) {
             try {
@@ -237,13 +266,13 @@ class PrivilegedService : Service() {
         registerReceivers()
     }
 
-    override fun onBind(intent: Intent): IBinder {
-        return binder
-    }
-
     override fun onDestroy() {
         unregisterReceiver(broadcastReceiver)
         super.onDestroy()
+    }
+
+    override fun onBind(intent: Intent): IBinder {
+        return binder
     }
 
     private fun registerMethods() {
@@ -272,30 +301,29 @@ class PrivilegedService : Service() {
 
     private fun registerReceivers() {
         val installIntent = IntentFilter().apply {
-            addAction(Constants.BROADCAST_ACTION_INSTALL)
-        }
-
-        val uninstallIntent = IntentFilter().apply {
-            addAction(Constants.BROADCAST_ACTION_UNINSTALL)
+            addAction(ACTION_INSTALL)
+            addAction(ACTION_UNINSTALL)
         }
 
         registerReceiver(
             broadcastReceiver,
             installIntent,
-            Constants.BROADCAST_SENDER_PERMISSION,
-            null
-        )
-
-        registerReceiver(
-            broadcastReceiver,
-            uninstallIntent,
-            Constants.BROADCAST_SENDER_PERMISSION,
+            Manifest.permission.INSTALL_PACKAGES,
             null
         )
     }
 
     @TargetApi(21)
-    private fun createInstallSession(packageName: String, uri: Uri) {
+    private fun createInstallSession(
+        packageName: String,
+        installerPackageName: String,
+        uri: Uri,
+        callback: IPrivilegedCallback
+    ) {
+        this.iPrivilegedCallback = callback
+        this.installerPackageName = installerPackageName
+        this.installerType = 0
+
         val params = SessionParams(SessionParams.MODE_FULL_INSTALL)
         val packageInstaller = packageManager.packageInstaller
         val sessionId = packageInstaller.createSession(params)
@@ -318,30 +346,51 @@ class PrivilegedService : Service() {
             IOUtils.close(outputStream)
 
             // Create a PendingIntent and use it to generate the IntentSender
-            val installIntent = Intent(Constants.BROADCAST_ACTION_INSTALL)
+            val intent = Intent(ACTION_INSTALL)
             val pendingIntent = PendingIntent.getBroadcast(
                 this,
                 sessionId,
-                installIntent,
+                intent,
                 PendingIntent.FLAG_UPDATE_CURRENT
             )
 
             session.commit(pendingIntent.intentSender)
         } catch (e: Exception) {
             Log.e("Failure -> %s", e)
+            callback.handleResultX(
+                packageName,
+                PackageInstaller.STATUS_FAILURE,
+                e.stackTraceToString()
+            )
+
+            callback.handleResult(
+                packageName,
+                PackageInstaller.STATUS_FAILURE
+            )
         } finally {
             IOUtils.close(session)
         }
     }
 
     @TargetApi(21)
-    private fun createInstallSession(packageName: String, uriList: List<Uri>) {
+    private fun createInstallSession(
+        packageName: String,
+        installerPackageName: String,
+        uriList: List<Uri>,
+        callback: IPrivilegedCallback
+    ) {
+        this.iPrivilegedCallback = callback
+        this.installerPackageName = installerPackageName
+        this.installerType = 0
+
         val packageInstaller = packageManager.packageInstaller
         val params = SessionParams(SessionParams.MODE_FULL_INSTALL)
-        val sessionId = packageInstaller.createSession(params)
-        val session = packageInstaller.openSession(sessionId)
 
         try {
+
+            val sessionId = packageInstaller.createSession(params)
+            val session = packageInstaller.openSession(sessionId)
+
             var apkId = 1
             for (uri in uriList) {
                 val inputStream = contentResolver.openInputStream(uri)
@@ -359,8 +408,7 @@ class PrivilegedService : Service() {
                 IOUtils.close(outputStream)
             }
 
-
-            val intent = Intent(Constants.BROADCAST_ACTION_INSTALL)
+            val intent = Intent(ACTION_INSTALL)
             val pendingIntent = PendingIntent.getBroadcast(
                 this,
                 sessionId,
@@ -370,21 +418,38 @@ class PrivilegedService : Service() {
 
             session.commit(pendingIntent.intentSender)
         } catch (e: Exception) {
-            Log.e("Failure -> %s", e)
-        } finally {
-            IOUtils.close(session)
+            Log.e("Error -> ${e.message}")
+            handleFailure(
+                callback,
+                packageName,
+                installerPackageName,
+                true,
+                1,
+                e.stackTraceToString()
+            )
         }
     }
 
     private fun install(
-        packageName: String, packageURI: Uri, flags: Int,
+        packageName: String,
+        packageURI: Uri,
+        flags: Int,
         installerPackageName: String,
         callback: IPrivilegedCallback
     ) {
+        this.iPrivilegedCallback = callback
+        this.installerPackageName = installerPackageName
+        this.installerType = 0
+
         val observer = object : IPackageInstallObserver.Stub() {
             override fun packageInstalled(packageName: String?, returnCode: Int) {
                 try {
                     callback.handleResult(packageName, returnCode)
+                    callback.handleResultX(
+                        packageName,
+                        returnCode,
+                        "Apps installed successfully"
+                    )
                 } catch (remoteException: RemoteException) {
                     Log.e("RemoteException -> %s", remoteException)
                 }
@@ -400,42 +465,104 @@ class PrivilegedService : Service() {
                 installerPackageName
             )
         } catch (e: Exception) {
-            Log.e("Android not compatible! -> %s", e)
-            try {
-                callback.handleResult(packageName, 0)
-            } catch (remoteException: RemoteException) {
-                Log.e("RemoteException -> %s", remoteException)
-            }
+            Log.e("Error -> %s", e)
+            handleFailure(
+                callback,
+                packageName,
+                installerPackageName,
+                true,
+                1,
+                e.stackTraceToString()
+            )
         }
     }
 
-    private fun uninstall(packageName: String, flags: Int, callback: IPrivilegedCallback) {
+    private fun uninstall(
+        packageName: String,
+        installerPackageName: String,
+        flags: Int,
+        callback: IPrivilegedCallback
+    ) {
+        this.iPrivilegedCallback = callback
+        this.installerPackageName = installerPackageName
+        this.installerType = 1
+
         if (isDeviceOwner(packageName)) {
-            Log.e("Cannot delete %s. This app is the device owner.", packageName)
+            val error = "Cannot delete $packageName. This app is the device owner."
+            Log.e(error)
+            handleFailure(
+                callback,
+                packageName,
+                installerPackageName,
+                true,
+                DELETE_FAILED_OWNER,
+                error
+            )
             return
         }
 
         val observer = object : IPackageDeleteObserver.Stub() {
             override fun packageDeleted(packageName: String?, returnCode: Int) {
                 try {
-                    callback.handleResult(packageName, returnCode)
+                    callback.handleResultX(
+                        packageName,
+                        returnCode,
+                        "App uninstalled"
+                    )
+
+                    callback.handleResult(
+                        packageName,
+                        returnCode
+                    )
                 } catch (remoteException: RemoteException) {
                     Log.e("RemoteException -> %s", remoteException)
+                    packageName?.let {
+                        handleFailure(
+                            callback,
+                            it,
+                            installerPackageName,
+                            true,
+                            -1,
+                            remoteException.stackTraceToString()
+                        )
+                    }
                 }
             }
         }
 
-        // execute internal method
         try {
             deleteMethod.invoke(packageManager, packageName, observer, flags)
         } catch (e: Exception) {
-            Log.e("Android not compatible! -> %s", e)
-            try {
-                callback.handleResult(packageName, 0)
-            } catch (e1: RemoteException) {
-                Log.e("RemoteException -> %s", e1)
-            }
+            Log.e("Error : ${e.message}")
+            handleFailure(callback, packageName, installerPackageName, true, -1, "")
         }
+    }
+
+    private fun handleFailure(
+        callback: IPrivilegedCallback,
+        packageName: String,
+        installerPackageName: String,
+        granted: Boolean = false,
+        code: Int,
+        extra: String
+    ) {
+        callback.handleResultX(
+            packageName,
+            code,
+            extra
+        )
+
+        callback.handleResult(
+            packageName,
+            code
+        )
+
+        updateStats(
+            packageName,
+            installerPackageName,
+            isGranted = granted,
+            isInstall = code == 1
+        )
     }
 
     private fun updateStats(
