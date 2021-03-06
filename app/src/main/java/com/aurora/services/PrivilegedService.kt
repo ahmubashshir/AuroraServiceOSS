@@ -244,7 +244,6 @@ class PrivilegedService : Service() {
                     DELETE_FAILED,
                     "Un-installer now allowed"
                 )
-                return
             }
         }
     }
@@ -465,7 +464,7 @@ class PrivilegedService : Service() {
                 installerPackageName
             )
         } catch (e: Exception) {
-            Log.e("Error -> %s", e)
+            Log.e("Error : ${e.message}")
             handleFailure(
                 callback,
                 packageName,
@@ -498,43 +497,42 @@ class PrivilegedService : Service() {
                 DELETE_FAILED_OWNER,
                 error
             )
-            return
-        }
-
-        val observer = object : IPackageDeleteObserver.Stub() {
-            override fun packageDeleted(packageName: String?, returnCode: Int) {
-                try {
-                    callback.handleResultX(
-                        packageName,
-                        returnCode,
-                        "App uninstalled"
-                    )
-
-                    callback.handleResult(
-                        packageName,
-                        returnCode
-                    )
-                } catch (remoteException: RemoteException) {
-                    Log.e("RemoteException -> %s", remoteException)
-                    packageName?.let {
-                        handleFailure(
-                            callback,
-                            it,
-                            installerPackageName,
-                            true,
-                            -1,
-                            remoteException.stackTraceToString()
+        } else {
+            val observer = object : IPackageDeleteObserver.Stub() {
+                override fun packageDeleted(packageName: String?, returnCode: Int) {
+                    try {
+                        callback.handleResultX(
+                            packageName,
+                            returnCode,
+                            "App uninstalled"
                         )
+
+                        callback.handleResult(
+                            packageName,
+                            returnCode
+                        )
+                    } catch (remoteException: RemoteException) {
+                        Log.e("RemoteException -> %s", remoteException)
+                        packageName?.let {
+                            handleFailure(
+                                callback,
+                                it,
+                                installerPackageName,
+                                true,
+                                -1,
+                                remoteException.stackTraceToString()
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        try {
-            deleteMethod.invoke(packageManager, packageName, observer, flags)
-        } catch (e: Exception) {
-            Log.e("Error : ${e.message}")
-            handleFailure(callback, packageName, installerPackageName, true, -1, "")
+            try {
+                deleteMethod.invoke(packageManager, packageName, observer, flags)
+            } catch (e: Exception) {
+                Log.e("Error : ${e.message}")
+                handleFailure(callback, packageName, installerPackageName, true, -1, "")
+            }
         }
     }
 
