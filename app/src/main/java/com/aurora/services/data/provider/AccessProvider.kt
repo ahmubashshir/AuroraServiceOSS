@@ -11,7 +11,7 @@ class AccessProvider(context: Context) {
         "com.aurora.store",
         "com.aurora.store.debug",
         "com.aurora.store.nightly",
-        "com.aurora.droid"
+        "com.aurora.adroid"
     )
 
     private val packageManager: PackageManager = context.packageManager
