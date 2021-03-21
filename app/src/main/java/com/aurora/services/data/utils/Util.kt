@@ -2,9 +2,11 @@ package com.aurora.services.data.utils
 
 import android.content.Context
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.util.TypedValue
 import androidx.core.app.ActivityOptionsCompat
+import androidx.core.net.toFile
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -51,5 +53,9 @@ object Util {
         }
 
         return "$hh $mm"
+    }
+
+    fun getPackageNameFromUri(uri: Uri):String{
+        return uri.toFile().name
     }
 }

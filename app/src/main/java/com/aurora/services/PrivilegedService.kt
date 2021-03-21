@@ -37,6 +37,7 @@ import com.aurora.services.data.model.Stat
 import com.aurora.services.data.provider.AccessProvider
 import com.aurora.services.data.provider.StatsProvider
 import com.aurora.services.data.utils.Log
+import com.aurora.services.data.utils.Util
 import com.aurora.services.data.utils.extensions.isDeviceOwner
 import com.aurora.services.data.utils.extensions.isGranted
 import org.apache.commons.io.IOUtils
@@ -112,7 +113,8 @@ class PrivilegedService : Service() {
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
-            installPackageX("¯\\_(ツ)_/¯", packageURI, flags, installerPackageName, callback)
+            val packageName = Util.getPackageNameFromUri(packageURI)
+            installPackageX(packageName, packageURI, flags, installerPackageName, callback)
         }
 
         override fun installSplitPackage(
@@ -121,7 +123,8 @@ class PrivilegedService : Service() {
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
-            installSplitPackageX("¯\\_(ツ)_/¯", listURI, flags, installerPackageName, callback)
+            val packageName = Util.getPackageNameFromUri(listURI[0])
+            installSplitPackageX(packageName, listURI, flags, installerPackageName, callback)
         }
 
         override fun installPackageX(
