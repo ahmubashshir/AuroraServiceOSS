@@ -4,7 +4,7 @@
 
 Aurora Services is a system / root application that integrates with the Aurora line of products to simplify the installation of downloaded applications.
 
-Aurora Services is currently in developement, but all features listed here work without any hiccups.
+Aurora Services is currently in development, but all features listed here work without any hiccups.
 
 [***Link to Releases page***](https://gitlab.com/AuroraOSS/AuroraServices/-/releases)
 

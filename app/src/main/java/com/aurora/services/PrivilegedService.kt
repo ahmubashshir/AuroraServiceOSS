@@ -17,6 +17,7 @@
 package com.aurora.services
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.app.PendingIntent
 import android.app.Service
@@ -33,13 +34,11 @@ import android.os.Build
 import android.os.IBinder
 import android.os.RemoteException
 import androidx.annotation.RequiresApi
-import com.aurora.services.data.model.Stat
-import com.aurora.services.data.provider.AccessProvider
-import com.aurora.services.data.provider.StatsProvider
-import com.aurora.services.data.utils.Log
-import com.aurora.services.data.utils.Util
-import com.aurora.services.data.utils.extensions.isDeviceOwner
-import com.aurora.services.data.utils.extensions.isGranted
+import androidx.core.net.toFile
+import com.aurora.services.data.AccessProvider
+import com.aurora.services.data.Log
+import com.aurora.services.data.isDeviceOwner
+import com.aurora.services.data.isGranted
 import org.apache.commons.io.IOUtils
 import java.io.*
 import java.lang.reflect.Method
@@ -48,7 +47,6 @@ import java.util.*
 class PrivilegedService : Service() {
 
     private lateinit var iPrivilegedCallback: IPrivilegedCallback
-    private lateinit var statsProvider: StatsProvider
     private lateinit var installMethod: Method
     private lateinit var deleteMethod: Method
 
@@ -61,6 +59,9 @@ class PrivilegedService : Service() {
 
         const val ACTION_INSTALL = "com.aurora.services.ACTION_INSTALL"
         const val ACTION_UNINSTALL = "com.aurora.services.ACTION_UNINSTALL"
+        fun getPackageNameFromUri(uri: Uri):String{
+            return uri.toFile().name
+        }
     }
 
     private val broadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
@@ -73,13 +74,6 @@ class PrivilegedService : Service() {
             Log.i("Callback -> $installerPackageName $packageName $returnCode $extra")
 
             packageName?.let {
-
-                updateStats(
-                    packageName,
-                    installerPackageName,
-                    isGranted = true,
-                    isInstall = installerType == 0
-                )
 
                 try {
                     iPrivilegedCallback.handleResult(packageName, returnCode)
@@ -113,7 +107,7 @@ class PrivilegedService : Service() {
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
-            val packageName = Util.getPackageNameFromUri(packageURI)
+            val packageName = getPackageNameFromUri(packageURI)
             installPackageX(packageName, packageURI, flags, installerPackageName, callback)
         }
 
@@ -123,7 +117,7 @@ class PrivilegedService : Service() {
             installerPackageName: String,
             callback: IPrivilegedCallback
         ) {
-            val packageName = Util.getPackageNameFromUri(listURI[0])
+            val packageName = getPackageNameFromUri(listURI[0])
             installSplitPackageX(packageName, listURI, flags, installerPackageName, callback)
         }
 
@@ -146,8 +140,6 @@ class PrivilegedService : Service() {
                 handleFailure(
                     callback,
                     packageName,
-                    installerPackageName,
-                    false,
                     1,
                     "Installer not allowed"
                 )
@@ -169,8 +161,6 @@ class PrivilegedService : Service() {
                 handleFailure(
                     callback,
                     packageName,
-                    installerPackageName,
-                    false,
                     1,
                     "Installer not allowed"
                 )
@@ -185,6 +175,7 @@ class PrivilegedService : Service() {
             deletePackageX(packageName, flags, "¯\\_(ツ)_/¯", callback)
         }
 
+        @SuppressLint("UnspecifiedImmutableFlag")
         override fun deletePackageX(
             packageName: String,
             flags: Int,
@@ -221,19 +212,11 @@ class PrivilegedService : Service() {
                         uninstall(packageName, installerPackageName, flags, callback)
                     }
 
-                    updateStats(
-                        packageName,
-                        installerPackageName,
-                        isGranted = true,
-                        isInstall = false
-                    )
                 } catch (e: Exception) {
                     Log.e("Error : ${e.message}")
                     handleFailure(
                         callback,
                         packageName,
-                        installerPackageName,
-                        true,
                         DELETE_FAILED,
                         e.stackTraceToString()
                     )
@@ -242,8 +225,6 @@ class PrivilegedService : Service() {
                 handleFailure(
                     callback,
                     packageName,
-                    installerPackageName,
-                    false,
                     DELETE_FAILED,
                     "Un-installer now allowed"
                 )
@@ -254,7 +235,6 @@ class PrivilegedService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        statsProvider = StatsProvider(this)
 
         if (Build.VERSION.SDK_INT < 21) {
             try {
@@ -424,8 +404,6 @@ class PrivilegedService : Service() {
             handleFailure(
                 callback,
                 packageName,
-                installerPackageName,
-                true,
                 1,
                 e.stackTraceToString()
             )
@@ -471,8 +449,6 @@ class PrivilegedService : Service() {
             handleFailure(
                 callback,
                 packageName,
-                installerPackageName,
-                true,
                 1,
                 e.stackTraceToString()
             )
@@ -495,8 +471,6 @@ class PrivilegedService : Service() {
             handleFailure(
                 callback,
                 packageName,
-                installerPackageName,
-                true,
                 DELETE_FAILED_OWNER,
                 error
             )
@@ -520,8 +494,6 @@ class PrivilegedService : Service() {
                             handleFailure(
                                 callback,
                                 it,
-                                installerPackageName,
-                                true,
                                 -1,
                                 remoteException.stackTraceToString()
                             )
@@ -534,7 +506,7 @@ class PrivilegedService : Service() {
                 deleteMethod.invoke(packageManager, packageName, observer, flags)
             } catch (e: Exception) {
                 Log.e("Error : ${e.message}")
-                handleFailure(callback, packageName, installerPackageName, true, -1, "")
+                handleFailure(callback, packageName, -1, "")
             }
         }
     }
@@ -542,8 +514,6 @@ class PrivilegedService : Service() {
     private fun handleFailure(
         callback: IPrivilegedCallback,
         packageName: String,
-        installerPackageName: String,
-        granted: Boolean = false,
         code: Int,
         extra: String
     ) {
@@ -558,27 +528,5 @@ class PrivilegedService : Service() {
             code
         )
 
-        updateStats(
-            packageName,
-            installerPackageName,
-            isGranted = granted,
-            isInstall = code == 1
-        )
-    }
-
-    private fun updateStats(
-        packageName: String,
-        callerPackageName: String,
-        isGranted: Boolean = false,
-        isInstall: Boolean = false
-    ) {
-        statsProvider.add(
-            Stat(packageName).apply {
-                granted = isGranted
-                timeStamp = System.currentTimeMillis()
-                installerPackageName = callerPackageName
-                install = isInstall
-            }
-        )
     }
 }
