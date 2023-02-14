@@ -1,19 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.aurora.services">
-
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-
-    <uses-permission
-        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        tools:ignore="ScopedStorage" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-
-    <uses-permission
-        android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission
         android:name="android.permission.INSTALL_PACKAGES"
@@ -23,15 +10,11 @@
         android:name="android.permission.DELETE_PACKAGES"
         tools:ignore="ProtectedPermissions" />
 
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
-
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:requestLegacyExternalStorage="true"
-        android:theme="@style/AppTheme">
+        android:label="Aurora OSS Service"
+        android:requestLegacyExternalStorage="true">
 
         <service
             android:name=".PrivilegedService"
@@ -44,15 +27,5 @@
             </intent-filter>
         </service>
 
-        <activity android:name=".view.ui.activities.AuroraActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity android:name=".view.ui.activities.StatisticsActivity" />
     </application>
 </manifest>
