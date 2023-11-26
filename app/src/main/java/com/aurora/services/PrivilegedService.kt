@@ -63,7 +63,7 @@ class PrivilegedService : Service() {
             return uri.toFile().name
         }
         val INTENT_FLAGS = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         else
             PendingIntent.FLAG_UPDATE_CURRENT)
     }
@@ -217,7 +217,7 @@ class PrivilegedService : Service() {
                     }
 
                 } catch (e: Exception) {
-                    Log.e("Error : ${e.message}")
+                    Log.e("Error: ${e.message}")
                     handleFailure(
                         callback,
                         packageName,
@@ -285,18 +285,27 @@ class PrivilegedService : Service() {
         )
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private fun registerReceivers() {
         val installIntent = IntentFilter().apply {
             addAction(ACTION_INSTALL)
             addAction(ACTION_UNINSTALL)
         }
-
-        registerReceiver(
-            broadcastReceiver,
-            installIntent,
-            Manifest.permission.INSTALL_PACKAGES,
-            null
-        )
+        if (Build.VERSION.SDK_INT >= 33)
+            registerReceiver(
+                broadcastReceiver,
+                installIntent,
+                Manifest.permission.INSTALL_PACKAGES,
+                null,
+                RECEIVER_EXPORTED
+            )
+        else
+            registerReceiver(
+                broadcastReceiver,
+                installIntent,
+                Manifest.permission.INSTALL_PACKAGES,
+                null
+            )
     }
 
     @TargetApi(21)
