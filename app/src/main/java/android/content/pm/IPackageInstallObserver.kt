@@ -38,6 +38,7 @@ interface IPackageInstallObserver : IInterface {
         }
 
         companion object {
+            @Suppress("UNUSED_PARAMETER")
             fun asInterface(obj: IBinder?): IPackageInstallObserver {
                 throw RuntimeException("Stub!")
             }

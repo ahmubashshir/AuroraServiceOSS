@@ -38,6 +38,7 @@ interface IPackageDeleteObserver : IInterface {
         }
 
         companion object {
+            @Suppress("UNUSED_PARAMETER")
             fun asInterface(obj: IBinder?): IPackageDeleteObserver {
                 throw RuntimeException("Stub!")
             }
