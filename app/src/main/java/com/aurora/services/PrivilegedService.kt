@@ -62,6 +62,10 @@ class PrivilegedService : Service() {
         fun getPackageNameFromUri(uri: Uri):String{
             return uri.toFile().name
         }
+        val INTENT_FLAGS = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        else
+            PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     private val broadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
@@ -204,7 +208,7 @@ class PrivilegedService : Service() {
                             this@PrivilegedService,
                             0,
                             intent,
-                            PendingIntent.FLAG_UPDATE_CURRENT
+                            INTENT_FLAGS
                         )
 
                         packageInstaller.uninstall(packageName, pendingIntent.intentSender)
@@ -333,7 +337,7 @@ class PrivilegedService : Service() {
                 this,
                 sessionId,
                 intent,
-                PendingIntent.FLAG_UPDATE_CURRENT
+                INTENT_FLAGS
             )
 
             session.commit(pendingIntent.intentSender)
@@ -395,7 +399,7 @@ class PrivilegedService : Service() {
                 this,
                 sessionId,
                 intent,
-                PendingIntent.FLAG_UPDATE_CURRENT
+                INTENT_FLAGS
             )
 
             session.commit(pendingIntent.intentSender)
